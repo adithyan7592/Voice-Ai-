@@ -1,0 +1,8 @@
+node_modules/
+client/node_modules/
+.env
+client/.env.local
+*.log
+.DS_Store
+# Built dashboard — Railway builds this fresh on each deploy
+public/
