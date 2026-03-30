@@ -89,12 +89,23 @@ async function generateReply({ systemPrompt, history, userMessage, knowledgeCont
   // Anthropic requires first message to be user role
   if (messages[0]?.role === "assistant") messages.shift();
 
-  const r = await client.messages.create({
-    model:      "claude-sonnet-4-5",
-    max_tokens: 200,
-    system,
-    messages,
-  });
+  // const r = await client.messages.create({
+  //   model:      "claude-sonnet-4-5",
+  //   max_tokens: 200,
+  //   system,
+  //   messages,
+  // });
+  const r = await Promise.race([
+    client.messages.create({
+      model:      "claude-haiku-4-5-20251001",
+      max_tokens: 150,
+      system,
+      messages,
+    }),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Claude timeout")), 10000)
+    ),
+  ]);
 
   return r.content[0]?.text?.trim() ||
     "ക്ഷമിക്കണം, ഒരു technical issue ഉണ്ട്. ദയവായി ഒന്ന് കൂടി പറഞ്ഞൂ?";

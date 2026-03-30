@@ -92,6 +92,14 @@ async function getSession(callId) {
   return r.rows[0] || null;
 }
 
+// async function saveSession(callId, agentId, history) {
+//   await db.query(
+//     `INSERT INTO call_sessions (call_id, agent_id, history, updated_at)
+//      VALUES ($1, $2, $3, NOW())
+//      ON CONFLICT (call_id) DO UPDATE SET history = $3, updated_at = NOW()`,
+//     [callId, agentId, JSON.stringify(history)]
+//   );
+// }
 async function saveSession(callId, agentId, history) {
   await db.query(
     `INSERT INTO call_sessions (call_id, agent_id, history, updated_at)
@@ -145,17 +153,26 @@ function addSpeech(node, text, audioUrl) {
 }
 
 // ── GATHER builder ────────────────────────────────────────────
+// function buildGather(twiml, { callId, agentId, text, audioUrl }) {
+//   const gather = twiml.gather({
+//     input:         "speech",
+//     action:        `${process.env.BASE_URL}/twilio/respond?callId=${callId}&agentId=${agentId}`,
+//     method:        "POST",
+//     language:      TWILIO_SPEECH_CONFIG.language,
+//     enhanced:      TWILIO_SPEECH_CONFIG.enhanced,
+//     speechModel:   TWILIO_SPEECH_CONFIG.speechModel,
+//     speechTimeout: TWILIO_SPEECH_CONFIG.speechTimeout,
+//     hints:         TWILIO_SPEECH_CONFIG.hints,
+//     timeout:       6,
+//   });
 function buildGather(twiml, { callId, agentId, text, audioUrl }) {
   const gather = twiml.gather({
     input:         "speech",
     action:        `${process.env.BASE_URL}/twilio/respond?callId=${callId}&agentId=${agentId}`,
     method:        "POST",
-    language:      TWILIO_SPEECH_CONFIG.language,
-    enhanced:      TWILIO_SPEECH_CONFIG.enhanced,
-    speechModel:   TWILIO_SPEECH_CONFIG.speechModel,
-    speechTimeout: TWILIO_SPEECH_CONFIG.speechTimeout,
-    hints:         TWILIO_SPEECH_CONFIG.hints,
-    timeout:       6,
+    language:      "en-US",
+    speechTimeout: "auto",
+    timeout:       10,
   });
   addSpeech(gather, text, audioUrl);
   // Redirect fires only if Gather gets no input
@@ -253,12 +270,34 @@ router.post("/respond", validateTwilio, async (req, res) => {
   const { callId, agentId }          = req.query;
   const { SpeechResult, CallStatus } = req.body;
 
-  if (CallStatus === "completed" || !SpeechResult?.trim()) {
+  // if (CallStatus === "completed" || !SpeechResult?.trim()) {
+  //   return res.type("text/xml").send(new VoiceResponse().toString());
+  // }
+
+  
+  if (CallStatus === "completed") {
     return res.type("text/xml").send(new VoiceResponse().toString());
   }
 
-  console.log(`💬 [${callId}]: "${SpeechResult}"`);
+  // No speech detected — ask to repeat instead of hanging up
+  // for twilio to speak back because its is us number i changed En-in to En-us
+  if (!SpeechResult?.trim()) {
+    const twiml = new VoiceResponse();
+    const gather = twiml.gather({
+      input: "speech",
+      action: `${process.env.BASE_URL}/twilio/respond?callId=${callId}&agentId=${agentId}`,
+      method: "POST",
+      language: "en-US",
+      speechTimeout: "auto",
+      timeout: 10,
+    });
+    gather.say({ language: "ml-IN", voice: "Google.ml-IN-Wavenet-A" },
+      "ക്ഷമിക്കണം, ശരിക്കും കേട്ടില്ല. ദയവായി ഒന്നുകൂടി പറഞ്ഞൂ?"
+    );
+    return res.type("text/xml").send(twiml.toString());
+  }
 
+  console.log(`💬 [${callId}]: "${SpeechResult}"`);                                                   
   try {
     const [session, agent] = await Promise.all([
       getSession(callId),
@@ -268,7 +307,10 @@ router.post("/respond", validateTwilio, async (req, res) => {
       return res.type("text/xml").send(new VoiceResponse().toString());
     }
 
-    const history = JSON.parse(session.history || "[]");
+    // const history = JSON.parse(session.history || "[]");
+    const history = typeof session.history === "string"
+  ? JSON.parse(session.history || "[]")
+  : (session.history || []);
     const turn    = history.filter(h => h.role === "user").length + 1;
 
     // ── Escalation check ──────────────────────────────────────
@@ -363,6 +405,7 @@ router.post("/no-input", async (req, res) => {
   const endText = "ഞങ്ങൾ ഈ call close ചെയ്യുന്നു. Kerala Paints-ൽ വിളിച്ചതിന് നന്ദി!";
 
   // Synthesize nudge audio
+  // i am changing this also ml-in to eng-us
   const tts = callId
     ? await buildTTSAudio(nudge, callId, "no_input").catch(() => ({ usePlay: false }))
     : { usePlay: false };
@@ -372,7 +415,7 @@ router.post("/no-input", async (req, res) => {
     input:         "speech",
     action:        `${process.env.BASE_URL}/twilio/respond?callId=${callId}&agentId=${agentId}`,
     method:        "POST",
-    language:      "ml-IN",
+    language:      "en-US",
     speechTimeout: "auto",
     timeout:       8,
   });

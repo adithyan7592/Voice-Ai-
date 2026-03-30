@@ -23,6 +23,8 @@ const logger = winston.createLogger({
 });
 
 const app = express();
+// added  this 
+app.set("trust proxy", 1);
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
