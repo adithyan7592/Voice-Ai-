@@ -100,6 +100,7 @@ async function getSession(callId) {
 //     [callId, agentId, JSON.stringify(history)]
 //   );
 // }
+
 async function saveSession(callId, agentId, history) {
   await db.query(
     `INSERT INTO call_sessions (call_id, agent_id, history, updated_at)
@@ -143,6 +144,7 @@ async function buildTTSAudio(text, callId, suffix) {
   }
 }
 
+// Fallback: if Google TTS fails, we'll use Twilio <Say> with Malayalam voice.
 // ── TwiML builder — uses <Play> (Google TTS) or <Say> (fallback)
 function addSpeech(node, text, audioUrl) {
   if (audioUrl) {
@@ -152,6 +154,7 @@ function addSpeech(node, text, audioUrl) {
   }
 }
 
+// claude code for transcribing the call and analyzing the intent and sentiment.
 // ── GATHER builder ────────────────────────────────────────────
 // function buildGather(twiml, { callId, agentId, text, audioUrl }) {
 //   const gather = twiml.gather({
@@ -165,15 +168,19 @@ function addSpeech(node, text, audioUrl) {
 //     hints:         TWILIO_SPEECH_CONFIG.hints,
 //     timeout:       6,
 //   });
+
+// My custom code
 function buildGather(twiml, { callId, agentId, text, audioUrl }) {
   const gather = twiml.gather({
     input:         "speech",
     action:        `${process.env.BASE_URL}/twilio/respond?callId=${callId}&agentId=${agentId}`,
     method:        "POST",
-    language:      "en-US",
+    language:      "ml-IN",
     speechTimeout: "auto",
     timeout:       10,
   });
+
+
   addSpeech(gather, text, audioUrl);
   // Redirect fires only if Gather gets no input
   twiml.redirect(
