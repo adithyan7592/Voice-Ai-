@@ -9,7 +9,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const KERALA_STD = {
   "0471":"South Kerala","0474":"South Kerala","0476":"South Kerala","0477":"South Kerala",
   "0478":"South Kerala","0479":"South Kerala",
-  "0481":"Central Kerala","0484":"Central Kerala","0485":"Central Kerala",
+  "0481":"Central Kerala","0484":"Central Kerala","0485":"Central Kerala", 
   "0486":"Central Kerala","0487":"Central Kerala","0488":"Central Kerala",
   "0491":"North Kerala","0492":"North Kerala","0493":"North Kerala","0494":"North Kerala",
   "0495":"North Kerala","0496":"North Kerala","0497":"North Kerala","0498":"North Kerala",
@@ -62,7 +62,7 @@ async function generateReply({ systemPrompt, history, userMessage, knowledgeCont
     "",
     "CALL RULES:",
     "- Speak primarily in Malayalam. Mix natural English words as Keralites do.",
-    "- Keep replies SHORT (2-3 sentences max). This is a phone call.",
+    "- Keep replies SHORT (2-4 sentences max). This is a phone call.",
     "- Sound warm, natural — like a real Kerala lady.",
     "- Never use formatting, asterisks, or lists. Plain sentences only.",
     "- Always end with one follow-up question or clear next step.",
@@ -95,10 +95,11 @@ async function generateReply({ systemPrompt, history, userMessage, knowledgeCont
   //   system,
   //   messages,
   // });
+  // changed max_token 150 to 350 and model to claude-haiku-4-5-20251001 for more concise and relevant responses, especially for IVR context. Adjust as needed based on response quality and latency.
   const r = await Promise.race([
     client.messages.create({
       model:      "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+      max_tokens: 350,
       system,
       messages,
     }),
